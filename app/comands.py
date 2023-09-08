@@ -1,8 +1,8 @@
 from app.AddressBook import AddressBook
-from app.Fields import NameField, PhoneField
+from app.Fields import NameField, PhoneField, BirthdayField
 from app.Record import Record
 
-ADDRESS_BOOK = AddressBook()
+ADDRESS_BOOK = AddressBook(2)
 
 def input_error(handler):
     def inner(args):
@@ -19,14 +19,27 @@ def input_error(handler):
 
 @input_error
 def add_contact(*args):
-    name, phones = args[0], args[1:]
+    name, fields = args[0], args[1:]
     if name in ADDRESS_BOOK:
         return f'Contact with name "{name}" already exists.'
     name_field = NameField(name)
-    phones_list = [ PhoneField(phone) for phone in set(phones) ]
-    record = Record(name_field, phones_list)
-    ADDRESS_BOOK.add_record(record)
-    return f'Contact "{name}" added to conctacts.'
+    phones_list = []
+    errors = []
+    birthday = None
+    for field in fields:
+        phone = PhoneField(field)
+        bday = BirthdayField(field)
+        if phone.value:
+            phones_list.append(phone)
+        elif bday.value:
+            birthday = bday
+        else:
+            errors.append(f'param "{field}" is wrong. If you whant to add birthday use format dd-mm-yyyy if you to phone use format +380XXXXXXXXX\n')
+    if not len(errors):
+        record = Record(name_field, phones_list, birthday)
+        ADDRESS_BOOK.add_record(record)
+        return f'Contact "{name}" added to conctacts.'
+    return f'Contact "{name}" can\'t be added:\n{"".join(errors)}'
 
 @input_error
 def add_phones(*args):
@@ -35,17 +48,22 @@ def add_phones(*args):
     if record and len(phones):
         added_phones = []
         missed_phones = []
+        invalid_phones = []
         response = ''
         for phone in set(phones):
-            is_added = record.add_phone(PhoneField(phone))
-            if is_added:
+            result = record.add_phone(PhoneField(phone))
+            if result == 1:
                 added_phones.append(phone)
-            else:
+            if result == 2:
                 missed_phones.append(phone)
+            if result == 0:
+                invalid_phones.append(phone)
         if len(added_phones):
             response += f'Phones {", ".join(added_phones)} added to contact "{name}"\n'
         if len(missed_phones):
-            response += f'Phones {", ".join(missed_phones)} already exists for contact "{name}"'
+            response += f'Phones {", ".join(missed_phones)} already exists for contact "{name}"\n'
+        if len(invalid_phones):
+            response += f'Phones {", ".join(invalid_phones)} are invalid. For add phone please use format +380XXXXXXXXX'
         return response
     elif record and not len(phones):
         return "You send empty phones list"
@@ -92,18 +110,36 @@ def remove_contact(*args):
     if name in ADDRESS_BOOK:
         ADDRESS_BOOK.pop(name)
         return f'Contact "{name}" removed from address book'
-    return f'Contact "name" does\'t exists in address book'
+    return f'Contact "{name}" does\'t exists in address book'
+
+@input_error
+def days_to_birthday(*args):
+    name = args[0]
+    if name in ADDRESS_BOOK:
+        days = ADDRESS_BOOK[name].days_to_birthday()
+        return f'{name} birthday in {days} days' if days else f'You haven\'t record about {name} birthday'
+    return f'Contact "{name}" does\'t exists in address book'
 
 @input_error
 def show_all(*args):
+    print(args)
     if len(args):
         raise IndexError
-    output = "---CONTACTS---\n"
     if len(ADDRESS_BOOK):
-        for record in ADDRESS_BOOK.values():
-            phones = ", ".join([ phone.value for phone in record.phones ])
-            output += f"{record.name.value} : {phones}\n"
-        return output[:-1]
+        output = "---CONTACTS--- (Tap enter for next page or print stop for exit)\n"
+        for page in ADDRESS_BOOK:
+            total_pages, current_page, data = page[0], page[1], page[2]
+            page_output = f"Page {current_page} of {total_pages}:\n"
+            for record in data:
+               phones = ", ".join([ phone.value for phone in record.phones ])
+               page_output += f"{record.name.value} : {phones}\n"
+            print(output)
+            print(page_output)
+            if current_page < total_pages:
+                inpt = input("pages >>> ")
+                if inpt == 'exit':
+                    break
+        return "Address book is closed"
     else:
         output += "Contacts are empty"
         return output
@@ -149,6 +185,7 @@ HANDLERS = {
     "phones": phones,
     "remove phone": remove_phone,
     "remove contact": remove_contact,
+    "days to birthday": days_to_birthday,
     "show all": show_all,
     "help": help
 }

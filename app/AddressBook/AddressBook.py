@@ -1,34 +1,41 @@
+from collections.abc import Iterator
 import json
 import os
+import math
 from pathlib import Path
 from typing import Optional
 from collections import UserDict
 from app.Record import Record
-from app.Fields import NameField, PhoneField
-
+from app.Fields import NameField, PhoneField, BirthdayField
+from .AddressBookGenerator import AddressBookGenerator
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 DICTIONARY_PATH = Path(os.path.join(__location__, "data.json"))
 
 class AddressBook(UserDict):
-    def __init__(self):
+    def __init__(self, contacts_per_page):
         super().__init__()
+        self.CONTACTS_PER_PAGE = contacts_per_page
         dictionary = {}
         try:
             with open(DICTIONARY_PATH, 'r', encoding='utf-8') as dictionary_file:
                 dictionary = json.load(dictionary_file)
         except FileNotFoundError:
             print('Dictionary file not found, file will be create when you finishing your work!')
-        for name, phones in dictionary.items():
+        for name, fields in dictionary.items():
             name_field = NameField(name)
-            phones = [ PhoneField(phone) for phone in phones ]
-            record = Record(name_field, phones)
+            phones = [ PhoneField(phone) for phone in fields["phones"] ]
+            birthday = BirthdayField(fields["birthday"])
+            record = Record(name_field, phones, birthday if birthday.value else None)
             self.add_record(record)
 
     def save_book(self):
         dictionary = {}
         for record in self.data.values():
-            dictionary[record.name.value] = [ phone.value for phone in record.phones ]
+            dictionary[record.name.value] = {
+                "phones": [ phone.value for phone in record.phones ],
+                "birthday": record.birthday.value if record.birthday else None 
+            }
         with open(DICTIONARY_PATH, "w") as dictionary_file:
             json.dump(dictionary, dictionary_file) 
 
@@ -39,3 +46,6 @@ class AddressBook(UserDict):
     def get_record(self, name: str) -> Optional[Record]:
         if name in self.data:
             return self.data[name]
+        
+    def __iter__(self) -> Iterator:
+        return AddressBookGenerator(self.CONTACTS_PER_PAGE, self.data)
