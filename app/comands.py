@@ -1,5 +1,5 @@
 from app.AddressBook import AddressBook
-from app.Fields import NameField, PhoneField, BirthdayField
+from app.Fields import NameField, PhoneField, BirthdayField, Exceptions
 from app.Record import Record
 
 ADDRESS_BOOK = AddressBook(2)
@@ -15,6 +15,10 @@ def input_error(handler):
             return "You are trying to set invalid value"
         except IndexError:
             return "You are sending invalid count of parameters. Please use help comand for hint"
+        except Exceptions.PhoneValidationError as err:
+            return str(err)
+        except Exceptions.BirthdayValidationError as err:
+            return str(err)
     return inner
 
 @input_error
@@ -27,19 +31,20 @@ def add_contact(*args):
     errors = []
     birthday = None
     for field in fields:
-        phone = PhoneField(field)
-        bday = BirthdayField(field)
-        if phone.value:
+        try:
+            phone = PhoneField(field)
             phones_list.append(phone)
-        elif bday.value:
-            birthday = bday
-        else:
-            errors.append(f'param "{field}" is wrong. If you whant to add birthday use format dd-mm-yyyy if you to phone use format +380XXXXXXXXX\n')
+        except Exceptions.PhoneValidationError as phone_error:
+            try:
+                birthday = BirthdayField(field)
+            except Exceptions.BirthdayValidationError as birthday_error:
+                errors.append(str(phone_error) + '\n')
+                errors.append(str(birthday_error) + '\n')
     if not len(errors):
         record = Record(name_field, phones_list, birthday)
         ADDRESS_BOOK.add_record(record)
         return f'Contact "{name}" added to conctacts.'
-    return f'Contact "{name}" can\'t be added:\n{"".join(errors)}'
+    return f'Contact "{name}" can\'t be added:\n{"n".join(errors)}'
 
 @input_error
 def add_phones(*args):
@@ -51,12 +56,10 @@ def add_phones(*args):
         invalid_phones = []
         response = ''
         for phone in set(phones):
-            result = record.add_phone(PhoneField(phone))
-            if result == 1:
-                added_phones.append(phone)
-            if result == 2:
-                missed_phones.append(phone)
-            if result == 0:
+            try:
+                result = record.add_phone(PhoneField(phone))
+                added_phones.append(phone) if result else missed_phones.append(phone)
+            except Exceptions.PhoneValidationError:
                 invalid_phones.append(phone)
         if len(added_phones):
             response += f'Phones {", ".join(added_phones)} added to contact "{name}"\n'
@@ -71,37 +74,23 @@ def add_phones(*args):
 
 @input_error
 def change(*args):
-    name, old_phone, new_phone = args[0], args[1], args[2]
+    name, old_phone, new_phone = args[0], PhoneField(args[1]), PhoneField(args[2])
     record = ADDRESS_BOOK.get_record(name)
     if record:
-        result = record.update_phone(old_phone, new_phone)
-        results = (
-            f'Phone {new_phone} already exists for this record',
-            f'Phone "{old_phone}" was changed to {new_phone} for contact "{name}"!',
-            f'Phone "{old_phone}" doen\'t exist for contact {name}'
-        )
-        return results[int(result)]
+        return record.update_phone(old_phone, new_phone)
     return f'Contact with name "{name}" doesn\'t exist.'
 
 @input_error
 def phones (*args):
     name = args[0]
-    record = ADDRESS_BOOK.get_record(name)
-    if record:
-        return f"Contact '{record.name.value}': {', '.join([ phone.value for phone in record.phones ])}"
-    return f'Contact with name "{name}" doesn\'t exist.'
+    return ADDRESS_BOOK.get_record(name) or f'Contact with name "{name}" doesn\'t exist.'
 
 @input_error
 def remove_phone(*args):
     name, phone = args[0], args[1]
     record = ADDRESS_BOOK.get_record(name)
     if record:
-        result = record.remove_phone(phone)
-        results = (
-            f'Contact phone with id "{phone}" was removed from contact "{name}"!',
-            f'Phone "{phone}" doen\'t exist for contact {name}'
-        )
-        return results[int(result)]
+        return record.remove_phone(phone)
     return f'Contact with "{name}" doesn\'t exist.'
 
 @input_error
@@ -131,8 +120,7 @@ def show_all(*args):
             total_pages, current_page, data = page[0], page[1], page[2]
             page_output = f"Page {current_page} of {total_pages}:\n"
             for record in data:
-               phones = ", ".join([ phone.value for phone in record.phones ])
-               page_output += f"{record.name.value} : {phones}\n"
+               page_output += f"{record}\n"
             print(output)
             print(page_output)
             if current_page < total_pages:

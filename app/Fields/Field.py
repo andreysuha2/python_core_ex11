@@ -3,6 +3,9 @@ class Field:
         self._value = None
         self.value = value
 
+    def __str__(self) -> str:
+        return self.value
+
     @property
     def value(self):
         return self._value

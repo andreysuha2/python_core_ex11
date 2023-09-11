@@ -1,5 +1,6 @@
 from datetime import datetime
 from .Field import Field
+from .Exceptions import BirthdayValidationError
 
 class BirthdayField(Field):
     birthday_format = '%d-%m-%Y'
@@ -12,9 +13,11 @@ class BirthdayField(Field):
                 bday = datetime.strptime(val, BirthdayField.birthday_format)
                 if (now - bday).days > 0:
                     self._value = val
+                else:
+                    raise BirthdayValidationError
             except ValueError:
-                pass
+                raise BirthdayValidationError(f"{val} isn't valid birthday. Please use format dd-mm-yyyy. Also birthday can't be late then today.")
     
     @property
     def in_datetime(self):
-        return datetime.strptime(self.value, BirthdayField.birthday_format) if self.value else None
+        return datetime.strptime(self.value, BirthdayField.birthday_format)

@@ -9,6 +9,9 @@ class Record:
         self.phones = phones
         self.birthday = birthday
 
+    def __repr__(self) -> str:
+        return f"{self.name.value}: {'|'.join([ phone.value for phone in self.phones ])}"
+
     def days_to_birthday(self) -> Optional[int]:
         if not self.birthday:
             return None
@@ -27,25 +30,23 @@ class Record:
         return index != -1
 
     def add_phone(self, phone: PhoneField) -> None:
-        if not phone.value:
-            return 0
         if not self.has_phone(phone.value):
             self.phones.append(phone)
-            return 1
-        return 2
+            return True
+        return False
 
     def remove_phone(self, searching_phone: str) -> None:
         index = self.get_phone_index(searching_phone)
         if index != -1:
             self.phones.pop(index)
-            return 0
-        return 1
+            return f'Phone "{searching_phone}" was removed from contact "{self.name}"!'
+        return f'Phone "{searching_phone}" doen\'t exist for contact {self.name}'
 
-    def update_phone(self, searching_phone: str, phone_number: str) -> None:
+    def update_phone(self, searching_phone: PhoneField, phone_number: PhoneField) -> None:
         if self.has_phone(phone_number):
-            return 0
-        index = self.get_phone_index(searching_phone)
+            return f'Phone {searching_phone} already exists for this record'
+        index = self.get_phone_index(searching_phone.value)
         if index != -1:
-            self.phones[index].value = phone_number
-            return 1
-        return 2
+            self.phones[index] = phone_number
+            return f'Phone "{searching_phone}" was changed to {phone_number} for contact "{self.name}"!'
+        return f'Phone "{phone_number}" doen\'t exist for contact {self.name}'
