@@ -44,7 +44,7 @@ def add_contact(*args):
         record = Record(name_field, phones_list, birthday)
         ADDRESS_BOOK.add_record(record)
         return f'Contact "{name}" added to conctacts.'
-    return f'Contact "{name}" can\'t be added:\n{"n".join(errors)}'
+    return f'Contact "{name}" can\'t be added:\n{"".join(errors)}'
 
 @input_error
 def add_phones(*args):
@@ -87,7 +87,7 @@ def phones (*args):
 
 @input_error
 def remove_phone(*args):
-    name, phone = args[0], args[1]
+    name, phone = args[0], PhoneField(args[1])
     record = ADDRESS_BOOK.get_record(name)
     if record:
         return record.remove_phone(phone)

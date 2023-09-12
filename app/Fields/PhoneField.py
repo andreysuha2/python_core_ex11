@@ -9,3 +9,6 @@ class PhoneField(Field):
             self._value = phone
         else:
             raise PhoneValidationError(f"Phone {phone} isn't valid. Please use format +380XXXXXXXXX")
+        
+    def __eq__(self, other) -> bool:
+        return self.value == other.value
